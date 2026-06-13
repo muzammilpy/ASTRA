@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: astra-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false          # Set this in the Render dashboard
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: GROQ_API_KEY
+        sync: false          # Set this in the Render dashboard
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+      - key: GOOGLE_PLACES_API_KEY
+        value: ""
+      - key: ALLOWED_ORIGINS
+        value: '["https://astra-aiplatform.web.app","https://astra-aiplatform.firebaseapp.com","http://localhost:5173","http://localhost:8001"]'
+      - key: ENVIRONMENT
+        value: production
+      - key: GEMINI_TIMEOUT
+        value: "90"
+      - key: GROQ_TIMEOUT
+        value: "90"
+      - key: AGENCY_TIMEOUT
+        value: "10"
