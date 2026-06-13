@@ -130,7 +130,7 @@ def _normalize_groq_output(raw: Dict[str, Any]) -> Dict[str, Any]:
 # Public API
 # ---------------------------------------------------------------------------
 
-async def reason_about_waste(gemini_data: Dict[str, Any]) -> Dict[str, Any]:
+async def reason_about_waste(gemini_data: Dict[str, Any], user_context: Dict[str, Any] = {}) -> Dict[str, Any]:
     """
     Send Gemini's deep analysis to Groq and return a full sustainability advisory
     including 6 detailed DIY projects (or recycling guidance for hazardous items).
@@ -147,8 +147,7 @@ async def reason_about_waste(gemini_data: Dict[str, Any]) -> Dict[str, Any]:
     if not settings.GROQ_API_KEY:
         logger.warning("GROQ_API_KEY not set — returning rich mock advisory for development")
         return _mock_advisory(gemini_data)
-
-    prompt = build_groq_prompt(gemini_data)
+    prompt = build_groq_prompt(gemini_data, user_context)
     body   = _build_request_body(prompt)
 
     logger.info(

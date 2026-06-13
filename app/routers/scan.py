@@ -55,6 +55,7 @@ async def _run_pipeline(
     city: str,
     latitude: Optional[float],
     longitude: Optional[float],
+    user_context: Optional[dict] = None,
 ) -> ScanResponse:
     """
     Core ASTRA pipeline.
@@ -98,7 +99,7 @@ async def _run_pipeline(
 
     # ── Step 2: Groq LLM ────────────────────────────────────────────────────
     try:
-        groq_data = await groq_service.reason_about_waste(gemini_data)
+        groq_data = await groq_service.reason_about_waste(gemini_data, user_context or {})
     except RuntimeError as exc:
         logger.error(f"[{scan_id}] Groq error: {exc}")
         raise HTTPException(
@@ -271,9 +272,26 @@ async def scan_from_upload(
     ),
     latitude: Optional[float]  = Form(None, description="GPS latitude  (improves distance accuracy)"),
     longitude: Optional[float] = Form(None, description="GPS longitude (improves distance accuracy)"),
+    # ── Optional user context ─────────────────────────────────────────────────
+    user_goal: Optional[str]      = Form(None, description="What the user wants to do: diy | sell | donate | recycle | unsure"),
+    user_quantity: Optional[int]  = Form(None, description="Number of items the user has"),
+    user_condition: Optional[str] = Form(None, description="Item condition: working | damaged | broken | mixed"),
+    user_skill: Optional[str]     = Form(None, description="DIY skill level: beginner | intermediate | advanced"),
+    user_notes: Optional[str]     = Form(None, description="Free-text extra details from the user"),
 ) -> ScanResponse:
 
     city = _validate_inputs(city, latitude, longitude)
+
+    # ── Build optional user context dict ─────────────────────────────────────
+    user_context = {
+        k: v for k, v in {
+            "goal":      user_goal,
+            "quantity":  user_quantity,
+            "condition": user_condition,
+            "skill":     user_skill,
+            "notes":     user_notes,
+        }.items() if v is not None
+    }
 
     try:
         image_bytes, mime_type = await validate_and_read_image(image)
@@ -283,7 +301,7 @@ async def scan_from_upload(
             detail=ErrorDetail(code="INVALID_IMAGE", message=str(exc)).model_dump(),
         )
 
-    return await _run_pipeline(image_bytes, mime_type, city, latitude, longitude)
+    return await _run_pipeline(image_bytes, mime_type, city, latitude, longitude, user_context)
 
 
 # ---------------------------------------------------------------------------
@@ -320,9 +338,25 @@ async def scan_from_camera(
     ),
     latitude: Optional[float]  = Body(None, embed=True, description="GPS latitude"),
     longitude: Optional[float] = Body(None, embed=True, description="GPS longitude"),
+    # ── Optional user context ─────────────────────────────────────────────────
+    user_goal: Optional[str]      = Body(None, embed=True),
+    user_quantity: Optional[int]  = Body(None, embed=True),
+    user_condition: Optional[str] = Body(None, embed=True),
+    user_skill: Optional[str]     = Body(None, embed=True),
+    user_notes: Optional[str]     = Body(None, embed=True),
 ) -> ScanResponse:
 
     city = _validate_inputs(city, latitude, longitude)
+
+    user_context = {
+        k: v for k, v in {
+            "goal":      user_goal,
+            "quantity":  user_quantity,
+            "condition": user_condition,
+            "skill":     user_skill,
+            "notes":     user_notes,
+        }.items() if v is not None
+    }
 
     try:
         image_bytes, mime_type = decode_data_uri(image_data_uri)
@@ -332,4 +366,4 @@ async def scan_from_camera(
             detail=ErrorDetail(code="INVALID_IMAGE", message=str(exc)).model_dump(),
         )
 
-    return await _run_pipeline(image_bytes, mime_type, city, latitude, longitude)
+    return await _run_pipeline(image_bytes, mime_type, city, latitude, longitude, user_context)

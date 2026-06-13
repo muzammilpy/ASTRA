@@ -34,7 +34,13 @@ class Settings(BaseSettings):
     # -----------------------------------------------------------------------
     # CORS
     # -----------------------------------------------------------------------
-    ALLOWED_ORIGINS: List[str] = ["*"]
+    ALLOWED_ORIGINS: List[str] = [
+        "https://astra-aiplatform.web.app",
+        "https://astra-aiplatform.firebaseapp.com",
+        "http://localhost:5173",
+        "http://localhost:8001",
+        "*",
+    ]
 
     # -----------------------------------------------------------------------
     # Timeouts (seconds)

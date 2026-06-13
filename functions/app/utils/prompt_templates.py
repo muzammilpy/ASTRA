@@ -63,9 +63,10 @@ Analyze the waste or junk item shown and return JSON with EXACTLY this structure
 # Groq LLM – Main Reasoning Prompt
 # ---------------------------------------------------------------------------
 
-def build_groq_prompt(gemini_data: dict) -> str:
+def build_groq_prompt(gemini_data: dict, user_context: dict = {}) -> str:
     """
     Build the Groq reasoning prompt from Gemini's structured output.
+    Incorporates optional user_context (goal, quantity, skill, notes).
     Forces 6 detailed DIY projects with full step-by-step instructions.
     Returns ONLY valid JSON.
     """
@@ -79,6 +80,46 @@ def build_groq_prompt(gemini_data: dict) -> str:
     recycle_verdict = gemini_data.get("recycle_verdict", "Standard Recycling")
     description   = gemini_data.get("gemini_description", "No visual description available.")
     labels        = ", ".join(gemini_data.get("visible_labels", [])) or "none"
+
+    # Build user context section
+    ctx_lines = []
+    if user_context.get("goal"):
+        goal_map = {
+            "diy": "User WANTS to make something themselves (DIY) — prioritise hands-on projects",
+            "sell": "User WANTS to sell it — focus on monetary value and best platform",
+            "donate": "User WANTS to donate it — focus on donation channels",
+            "recycle": "User WANTS to recycle it — focus on recycling guidance",
+            "unsure": "User is UNSURE — recommend the best overall option",
+        }
+        ctx_lines.append(f"User Goal: {goal_map.get(user_context['goal'], user_context['goal'])}")
+    if user_context.get("quantity"):
+        ctx_lines.append(f"Quantity: {user_context['quantity']} item(s) — scale suggestions accordingly")
+    if user_context.get("condition"):
+        cond_map = {
+            "working": "User says item is STILL WORKING — lean toward reuse/donate/sell",
+            "damaged": "User says item is DAMAGED but repairable — lean toward repair/DIY",
+            "broken": "User says item is BROKEN — lean toward disassembly/recycle",
+            "mixed": "User has mixed condition items",
+        }
+        ctx_lines.append(f"User-Reported Condition: {cond_map.get(user_context['condition'], user_context['condition'])}")
+    if user_context.get("skill"):
+        skill_map = {
+            "beginner": "DIY skill: BEGINNER — only suggest simple, no-tool projects",
+            "intermediate": "DIY skill: INTERMEDIATE — suggest projects with basic tools",
+            "advanced": "DIY skill: ADVANCED — all project types welcome",
+        }
+        ctx_lines.append(f"{skill_map.get(user_context['skill'], '')}")
+    if user_context.get("notes"):
+        ctx_lines.append(f"User Notes: \"{user_context['notes']}\"")
+
+    user_context_section = ""
+    if ctx_lines:
+        user_context_section = (
+            "\n═══════════════════════════════════════════════════════════\n"
+            "USER CONTEXT (provided by the user — PRIORITISE these preferences)\n"
+            "═══════════════════════════════════════════════════════════\n"
+            + "\n".join(ctx_lines) + "\n"
+        )
 
     # Determine if the item is too hazardous for ANY home DIY
     dangerous_keywords = ["battery leakage", "toxic", "asbestos", "biohazard", "crt", "hazardous"]
@@ -117,7 +158,7 @@ Recycle Verdict  : {recycle_verdict}
 Full Visual Description:
 "{description}"
 ═══════════════════════════════════════════════════════════
-
+{user_context_section}
 YOUR TASK:
 {diy_instruction}
 
